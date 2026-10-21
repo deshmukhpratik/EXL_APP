@@ -1,0 +1,34 @@
+Package: creditPolicyTool
+Title: Credit Policy Tool v2
+Version: 2.0.0
+Authors@R: person("Vishnu", role = c("aut", "cre"), email = "noreply@example.com")
+Description: Credit risk policy discovery, simulation, and governance tool
+    for consulting demos. Modular Shiny app built on bslib with a
+    three-layer architecture (tabs, services, engine) and optional
+    LLM integration for segment explanations and scenario narration.
+License: file LICENSE
+Encoding: UTF-8
+Imports:
+    shiny (>= 1.7.0),
+    bslib (>= 0.7.0),
+    shinyWidgets,
+    DT,
+    plotly,
+    dplyr,
+    tidyr,
+    rpart,
+    rlang,
+    ggplot2,
+    readr,
+    lubridate,
+    scales,
+    tibble,
+    stringr,
+    jsonlite,
+    httr2,
+    digest
+Suggests:
+    xgboost,
+    shapviz,
+    testthat (>= 3.0.0),
+    renv

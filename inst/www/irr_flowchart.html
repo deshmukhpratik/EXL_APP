@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IRR Engine — Cashflow Flowchart</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 32px 24px;
+    min-height: 100vh;
+  }
+
+  /* ── Section Titles ───────────────────────────────────── */
+  .section-label {
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #64748b;
+    margin-bottom: 16px;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     PART 1 — HIGH-LEVEL PIPELINE
+     ════════════════════════════════════════════════════════ */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+  }
+  .pipe-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 20px 24px;
+    text-align: center;
+    min-width: 180px;
+    max-width: 220px;
+    position: relative;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .pipe-card:hover {
+    transform: translateY(-2px);
+    border-color: #64748b;
+  }
+  .pipe-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .pipe-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 4px;
+  }
+  .pipe-sub {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+  .pipe-arrow {
+    font-size: 24px;
+    color: #475569;
+    margin: 0 8px;
+    flex-shrink: 0;
+  }
+
+  /* Color accents for pipeline */
+  .pipe-card.input   { border-top: 3px solid #3b82f6; }
+  .pipe-card.curves  { border-top: 3px solid #22c55e; }
+  .pipe-card.engine  { border-top: 3px solid #f59e0b; }
+  .pipe-card.output  { border-top: 3px solid #a855f7; }
+
+  /* Step numbers on pipeline cards */
+  .pipe-step {
+    position: absolute;
+    top: -10px;
+    left: 14px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .pipe-card.input  .pipe-step { background: #3b82f6; }
+  .pipe-card.curves .pipe-step { background: #22c55e; }
+  .pipe-card.engine .pipe-step { background: #f59e0b; }
+  .pipe-card.output .pipe-step { background: #a855f7; }
+
+  /* ════════════════════════════════════════════════════════
+     PART 2 — CASHFLOW WATERFALL
+     ════════════════════════════════════════════════════════ */
+  .waterfall-container {
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 16px;
+    padding: 32px 28px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  .waterfall-title {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 4px;
+  }
+  .waterfall-subtitle {
+    text-align: center;
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 28px;
+  }
+
+  /* ── Opening Balance Row ──────────────────────────────── */
+  .balance-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+  .balance-box {
+    background: #1e293b;
+    border: 2px solid #475569;
+    border-radius: 10px;
+    padding: 14px 28px;
+    text-align: center;
+    min-width: 320px;
+  }
+  .balance-box .box-label {
+    font-size: 15px;
+    font-weight: 700;
+    color: #f1f5f9;
+  }
+  .balance-box .box-detail {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 3px;
+  }
+  .balance-box .box-acronym {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 2px;
+    font-style: italic;
+  }
+
+  /* ── Centre Arrow ─────────────────────────────────────── */
+  .center-arrow {
+    text-align: center;
+    font-size: 22px;
+    color: #475569;
+    margin: 8px 0;
+    line-height: 1;
+  }
+
+  /* ── Split Label Row ──────────────────────────────────── */
+  .split-label-row {
+    display: flex;
+    justify-content: center;
+    gap: 80px;
+    margin-bottom: 6px;
+  }
+  .lane-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .lane-label.outflow { color: #f87171; }
+  .lane-label.inflow  { color: #34d399; }
+  .lane-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .lane-dot.red   { background: #ef4444; }
+  .lane-dot.green { background: #10b981; }
+
+  /* ── Two-Column Lanes ─────────────────────────────────── */
+  .lanes {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin-bottom: 8px;
+  }
+  .lane {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 300px;
+    max-width: 380px;
+    flex: 1;
+  }
+
+  /* ── Cashflow Cards ───────────────────────────────────── */
+  .cf-card {
+    border-radius: 10px;
+    padding: 14px 16px;
+    position: relative;
+    transition: transform 0.15s;
+  }
+  .cf-card:hover {
+    transform: translateX(3px);
+  }
+
+  /* Outflow cards — red family */
+  .cf-card.outflow {
+    background: #1c1017;
+    border: 1.5px solid #7f1d1d;
+    border-left: 4px solid #ef4444;
+  }
+  /* Inflow cards — green family */
+  .cf-card.inflow {
+    background: #0d1f17;
+    border: 1.5px solid #14532d;
+    border-left: 4px solid #10b981;
+  }
+
+  .cf-label {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .cf-card.outflow .cf-label { color: #fca5a5; }
+  .cf-card.inflow  .cf-label { color: #6ee7b7; }
+
+  .cf-formula {
+    font-size: 12px;
+    color: #cbd5e1;
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+  .cf-source {
+    display: inline-block;
+    font-size: 10px;
+    color: #94a3b8;
+    background: #1e293b;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 2px;
+  }
+  .cf-acronym {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 10px;
+    color: #475569;
+    font-style: italic;
+  }
+
+  /* ── Surviving Balance (bridge row) ───────────────────── */
+  .bridge-row {
+    display: flex;
+    justify-content: center;
+    margin: 8px 0;
+  }
+  .bridge-box {
+    background: #172033;
+    border: 1.5px dashed #475569;
+    border-radius: 8px;
+    padding: 10px 24px;
+    text-align: center;
+  }
+  .bridge-box .box-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #94a3b8;
+  }
+  .bridge-box .box-detail {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  /* ── Net Cashflow Result ──────────────────────────────── */
+  .result-row {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .result-card {
+    border-radius: 12px;
+    padding: 16px 24px;
+    text-align: center;
+    min-width: 260px;
+    flex: 1;
+    max-width: 380px;
+  }
+  .result-card.ncf {
+    background: linear-gradient(135deg, #1a1507 0%, #1f1a08 100%);
+    border: 2px solid #d97706;
+    box-shadow: 0 0 20px rgba(217, 119, 6, 0.15), 0 0 40px rgba(217, 119, 6, 0.05);
+  }
+  .result-card.ebb {
+    background: #1e293b;
+    border: 2px solid #475569;
+  }
+  .result-card .box-label {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .result-card.ncf .box-label { color: #fbbf24; }
+  .result-card.ebb .box-label { color: #e2e8f0; }
+  .result-card .box-detail {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+  .result-card .box-acronym {
+    font-size: 10px;
+    color: #64748b;
+    font-style: italic;
+    margin-top: 3px;
+  }
+
+  /* ── Feed-next arrow ──────────────────────────────────── */
+  .feed-arrow {
+    text-align: center;
+    margin: 14px 0 4px;
+  }
+  .feed-arrow span {
+    display: inline-block;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 11px;
+    color: #64748b;
+  }
+
+  /* ── Repeat Indicator ─────────────────────────────────── */
+  .repeat-indicator {
+    text-align: center;
+    margin-top: 10px;
+  }
+  .repeat-badge {
+    display: inline-block;
+    background: #0f172a;
+    border: 1px dashed #475569;
+    border-radius: 20px;
+    padding: 6px 20px;
+    font-size: 11px;
+    color: #64748b;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Legend ────────────────────────────────────────────── */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #94a3b8;
+  }
+  .legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  /* ── XIRR Output Row ──────────────────────────────────── */
+  .xirr-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .xirr-card {
+    background: #1a0f2e;
+    border: 1.5px solid #7c3aed;
+    border-radius: 10px;
+    padding: 14px 20px;
+    text-align: center;
+    min-width: 180px;
+    flex: 1;
+    max-width: 240px;
+  }
+  .xirr-card .box-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #c4b5fd;
+    margin-bottom: 3px;
+  }
+  .xirr-card .box-detail {
+    font-size: 11px;
+    color: #a78bfa;
+    line-height: 1.4;
+  }
+
+  /* ── Expandable Detail Panel ──────────────────────────── */
+  .expand-panel {
+    max-width: 960px;
+    margin: 0 auto 12px;
+  }
+  .expand-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 12px 20px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    text-align: center;
+    letter-spacing: 0.3px;
+  }
+  .expand-toggle:hover {
+    background: #263347;
+    border-color: #475569;
+    color: #cbd5e1;
+  }
+  .expand-chevron {
+    display: inline-block;
+    transition: transform 0.3s ease;
+    font-size: 11px;
+  }
+  .expand-panel[open] .expand-chevron {
+    transform: rotate(180deg);
+  }
+  .expand-panel[open] .expand-toggle {
+    border-radius: 10px 10px 0 0;
+    border-bottom: 1px solid #1e293b;
+    background: #151d2e;
+  }
+  .expand-body {
+    background: #111827;
+    border: 1px solid #334155;
+    border-top: none;
+    border-radius: 0 0  12px 12px;
+    padding: 28px 28px 24px;
+  }
+
+  /* Sub-section headers inside expanded panel */
+  .detail-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin: 0 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .detail-section-title .dt-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  /* Curve source option cards */
+  .source-options {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .source-card {
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+    background: #1e293b;
+    border: 1.5px solid #334155;
+    border-radius: 10px;
+    padding: 16px;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .source-card:hover {
+    transform: translateY(-2px);
+    border-color: #475569;
+  }
+  .source-card .sc-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .source-card .sc-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .source-card .sc-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f1f5f9;
+  }
+  .source-card .sc-desc {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+  .source-card .sc-tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+  .sc-tag.default { background: #14532d; color: #6ee7b7; }
+  .sc-tag.advanced { background: #1e3a5f; color: #93c5fd; }
+  .sc-tag.manual { background: #3b0764; color: #d8b4fe; }
+
+  /* Pipeline sub-flow inside expanded panel */
+  .curve-pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 16px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .cp-step {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 14px 16px;
+    min-width: 180px;
+    max-width: 220px;
+    flex: 1;
+    position: relative;
+  }
+  .cp-step .cp-num {
+    position: absolute;
+    top: -8px;
+    left: 12px;
+    background: #22c55e;
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cp-step .cp-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #6ee7b7;
+    margin-bottom: 4px;
+  }
+  .cp-step .cp-desc {
+    font-size: 10px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+  .cp-arrow {
+    display: flex;
+    align-items: center;
+    color: #475569;
+    font-size: 18px;
+    padding: 0 6px;
+    flex-shrink: 0;
+  }
+
+  /* Scenario table */
+  .scenario-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 12px;
+  }
+  .scenario-table th {
+    text-align: left;
+    font-weight: 700;
+    color: #94a3b8;
+    padding: 6px 12px;
+    border-bottom: 1px solid #334155;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+  }
+  .scenario-table td {
+    padding: 8px 12px;
+    color: #cbd5e1;
+    border-bottom: 1px solid #1e293b;
+  }
+  .scenario-table tr:hover td {
+    background: #1e293b;
+  }
+  .scenario-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .scenario-badge.base { background: #14532d; color: #6ee7b7; }
+  .scenario-badge.stress { background: #7f1d1d; color: #fca5a5; }
+  .scenario-badge.optimistic { background: #1e3a5f; color: #93c5fd; }
+
+  /* Separator inside expanded panel */
+  .detail-sep {
+    border: none;
+    border-top: 1px solid #1e293b;
+    margin: 20px 0;
+  }
+
+  /* ── Divider ──────────────────────────────────────────── */
+  .part-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 8px 0 20px;
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .part-divider::before,
+  .part-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #334155, transparent);
+  }
+  .part-divider span {
+    font-size: 10px;
+    color: #475569;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* ── Cross-link indicator ────────────────────────────── */
+  .cross-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    color: #6366f1;
+    background: #1e1b4b;
+    padding: 1px 7px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  /* ── Responsive ───────────────────────────────────────── */
+  @media (max-width: 740px) {
+    .lanes { flex-direction: column; align-items: center; }
+    .lane  { max-width: 100%; min-width: unset; }
+    .split-label-row { gap: 24px; }
+    .pipeline { gap: 8px; }
+    .pipe-arrow { display: none; }
+    .result-row { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     PART 1: HIGH-LEVEL PIPELINE
+     ═══════════════════════════════════════════════════════ -->
+<div class="section-label" style="text-align:center;">Part 1 &mdash; How the IRR Engine Works</div>
+
+<div class="pipeline">
+  <div class="pipe-card input">
+    <span class="pipe-step">1</span>
+    <span class="pipe-icon">&#128203;</span>
+    <div class="pipe-title">Loan Data</div>
+    <div class="pipe-sub">Loan amounts, APRs, terms,<br>observed payments &amp; defaults</div>
+  </div>
+
+  <span class="pipe-arrow">&#10132;</span>
+
+  <div class="pipe-card curves">
+    <span class="pipe-step">2</span>
+    <span class="pipe-icon">&#128200;</span>
+    <div class="pipe-title">Default &amp; Prepay Curves</div>
+    <div class="pipe-sub">Monthly default &amp; prepayment<br>rates by segment &amp; vintage</div>
+  </div>
+
+  <span class="pipe-arrow">&#10132;</span>
+
+  <div class="pipe-card engine">
+    <span class="pipe-step">3</span>
+    <span class="pipe-icon">&#9881;</span>
+    <div class="pipe-title">Monthly Cashflow Projection</div>
+    <div class="pipe-sub">Roll balance forward month<br>by month to loan maturity</div>
+  </div>
+
+  <span class="pipe-arrow">&#10132;</span>
+
+  <div class="pipe-card output">
+    <span class="pipe-step">4</span>
+    <span class="pipe-icon">&#128202;</span>
+    <div class="pipe-title">Portfolio IRR</div>
+    <div class="pipe-sub">Annualised return on the<br>loan portfolio (XIRR)</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     PART 1 DETAIL: HOW CURVES ARE BUILT (Collapsible)
+     ═══════════════════════════════════════════════════════ -->
+<details class="expand-panel">
+  <summary class="expand-toggle">
+    <span class="expand-chevron">&#9660;</span>
+    How are Default &amp; Prepayment Curves Generated?
+    <span style="font-size:10px; color:#64748b; font-weight:400;">&mdash; click to expand</span>
+  </summary>
+  <div class="expand-body">
+
+    <!-- ── Section A: Curve Source Options ──────────────── -->
+    <div class="detail-section-title">
+      <span class="dt-badge" style="background:#3b82f6;">A</span>
+      Where Do the Curves Come From?
+    </div>
+    <p style="font-size:12px; color:#94a3b8; margin:0 0 14px; line-height:1.6;">
+      The engine needs a monthly <strong style="color:#cbd5e1;">Default Rate (DCOR)</strong> and
+      <strong style="color:#cbd5e1;">Prepayment Rate (DPOR)</strong> for each loan segment.
+      There are three ways to provide them:
+    </p>
+
+    <div class="source-options">
+      <div class="source-card">
+        <div class="sc-header">
+          <span class="sc-icon">&#128202;</span>
+          <span class="sc-title">Auto-Derived from Tape</span>
+        </div>
+        <div class="sc-desc">
+          The engine extracts actual default and prepayment rates from your performance tape,
+          then fits parametric curves to project beyond observed months.
+        </div>
+        <span class="sc-tag default">Default &mdash; No Action Needed</span>
+      </div>
+
+      <div class="source-card">
+        <div class="sc-header">
+          <span class="sc-icon">&#128203;</span>
+          <span class="sc-title">Upload Custom Curves</span>
+        </div>
+        <div class="sc-desc">
+          Upload a CSV with your own DCOR/DPOR values by Product &times; Term &times; Vintage &times; MOB.
+          Use this when you have proprietary risk models or actuarial projections.
+        </div>
+        <span class="sc-tag manual">Manual Upload</span>
+      </div>
+
+      <div class="source-card">
+        <div class="sc-header">
+          <span class="sc-icon">&#9881;</span>
+          <span class="sc-title">Scenario Adjustments</span>
+        </div>
+        <div class="sc-desc">
+          Apply stress or optimistic multipliers to the base curves to model
+          different economic environments (recession, benign credit cycle, etc.).
+        </div>
+        <span class="sc-tag advanced">Advanced</span>
+      </div>
+    </div>
+
+    <hr class="detail-sep">
+
+    <!-- ── Section B: Auto-Derivation Pipeline ─────────── -->
+    <div class="detail-section-title">
+      <span class="dt-badge" style="background:#22c55e;">B</span>
+      How Auto-Derivation Works (Step by Step)
+    </div>
+    <p style="font-size:12px; color:#94a3b8; margin:0 0 14px; line-height:1.6;">
+      When using the performance tape, the engine builds curves in three steps:
+    </p>
+
+    <div class="curve-pipeline">
+      <div class="cp-step">
+        <span class="cp-num">1</span>
+        <div class="cp-title">Empirical Extraction</div>
+        <div class="cp-desc">
+          Average observed DCOR &amp; DPOR per<br>
+          <strong style="color:#cbd5e1;">Product &times; Term &times; Vintage &times; MOB</strong><br>
+          from loan-level performance tape.<br><br>
+          <span style="color:#64748b;">Covers MOBs 0&ndash;24 (observed window)</span>
+        </div>
+      </div>
+      <span class="cp-arrow">&#10132;</span>
+      <div class="cp-step">
+        <span class="cp-num">2</span>
+        <div class="cp-title">Parametric Tail Fit</div>
+        <div class="cp-desc">
+          <strong style="color:#cbd5e1;">DCOR:</strong> Exponential decay<br>
+          <span style="color:#64748b;">a &times; e<sup>-b&times;t</sup> + c</span><br>
+          (captures the &ldquo;hump then decline&rdquo; default pattern)<br><br>
+          <strong style="color:#cbd5e1;">DPOR:</strong> Constant average<br>
+          <span style="color:#64748b;">(observed ~1%/month, very flat)</span>
+        </div>
+      </div>
+      <span class="cp-arrow">&#10132;</span>
+      <div class="cp-step">
+        <span class="cp-num">3</span>
+        <div class="cp-title">Young Vintage Fallback</div>
+        <div class="cp-desc">
+          Vintages with &lt;6 observed months<br>
+          <strong style="color:#cbd5e1;">inherit the curve shape</strong><br>
+          from the nearest older vintage<br>
+          in the same Product &times; Term segment.<br><br>
+          <span style="color:#64748b;">Prevents noisy short-history curves</span>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:11px; color:#64748b; text-align:center; margin:4px 0 0;">
+      Result: complete DCOR/DPOR curve from MOB 0 to loan maturity (e.g. 72 months) for every segment
+    </p>
+
+    <hr class="detail-sep">
+
+    <!-- ── Section C: Scenario Multipliers ─────────────── -->
+    <div class="detail-section-title">
+      <span class="dt-badge" style="background:#f59e0b;">C</span>
+      Scenario Multipliers
+    </div>
+    <p style="font-size:12px; color:#94a3b8; margin:0 0 10px; line-height:1.6;">
+      Scenarios adjust the base curves to model different credit environments:
+    </p>
+
+    <table class="scenario-table">
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th>Default Rate (DCOR)</th>
+          <th>Prepay Rate (DPOR)</th>
+          <th>Recovery Adjustment</th>
+          <th>Use Case</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="scenario-badge base">Base</span></td>
+          <td>1.0&times; (unchanged)</td>
+          <td>1.0&times; (unchanged)</td>
+          <td>No change</td>
+          <td>Current economic environment</td>
+        </tr>
+        <tr>
+          <td><span class="scenario-badge stress">Stress</span></td>
+          <td>1.5&times; (50% higher defaults)</td>
+          <td>0.7&times; (30% fewer prepays)</td>
+          <td>&minus;5pp recovery</td>
+          <td>Recession / downturn modelling</td>
+        </tr>
+        <tr>
+          <td><span class="scenario-badge optimistic">Optimistic</span></td>
+          <td>0.7&times; (30% lower defaults)</td>
+          <td>1.2&times; (20% more prepays)</td>
+          <td>+3pp recovery</td>
+          <td>Benign credit cycle / expansion</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+</details>
+
+<!-- ═══════════════════════════════════════════════════════
+     PART 2: CASHFLOW WATERFALL
+     ═══════════════════════════════════════════════════════ -->
+<div class="part-divider"><span>Detailed View</span></div>
+<div class="section-label" style="text-align:center;">Part 2 &mdash; Monthly Cashflow Waterfall (One Loan, One Month)</div>
+
+<div class="waterfall-container">
+
+  <div class="waterfall-title">What Happens to the Balance Each Month?</div>
+  <div class="waterfall-subtitle">Each loan's balance is projected forward from origination to maturity, month by month</div>
+
+  <!-- ── Opening Balance ──────────────────────────────── -->
+  <div class="balance-row">
+    <div class="balance-box">
+      <div class="box-label">Opening Book Balance</div>
+      <div class="box-detail">The outstanding loan balance at the start of this month</div>
+      <div class="box-acronym">BBB &mdash; Beginning Book Balance</div>
+    </div>
+  </div>
+
+  <div class="center-arrow">&#9660;</div>
+
+  <!-- ── Lane Labels ──────────────────────────────────── -->
+  <div class="split-label-row">
+    <div class="lane-label outflow">
+      <span class="lane-dot red"></span>
+      Outflows &mdash; Money Leaving the Book
+    </div>
+    <div class="lane-label inflow">
+      <span class="lane-dot green"></span>
+      Inflows &mdash; Money Back to Lender
+    </div>
+  </div>
+
+  <!-- ── Two-Column Lanes ─────────────────────────────── -->
+  <div class="lanes">
+
+    <!-- ── LEFT: OUTFLOWS (Red) ──────────────────────── -->
+    <div class="lane">
+
+      <div class="cf-card outflow">
+        <span class="cf-acronym">ED</span>
+        <div class="cf-label">Defaults</div>
+        <div class="cf-formula">Balance &times; Monthly Default Rate</div>
+        <span class="cf-source">&#8592; from DCOR curve (varies by month-on-books)</span>
+        <span class="cross-link">&#8594; feeds Write-offs, Recoveries, Collection Fees</span>
+      </div>
+
+      <div class="cf-card outflow">
+        <span class="cf-acronym">EWF</span>
+        <div class="cf-label">Net Write-offs</div>
+        <div class="cf-formula">Defaults &minus; Recoveries</div>
+        <span class="cf-source">&#8592; the portion of defaults that is permanently lost</span>
+      </div>
+
+      <div class="cf-card outflow">
+        <span class="cf-acronym">EUPP</span>
+        <div class="cf-label">Prepayments</div>
+        <div class="cf-formula">(Balance &minus; Defaults) &times; Monthly Prepay Rate</div>
+        <span class="cf-source">&#8592; from DPOR curve &mdash; borrowers paying off early</span>
+      </div>
+
+      <div class="cf-card outflow" style="border-left-color: #f97316;">
+        <span class="cf-acronym">ESF + ECF + ERF</span>
+        <div class="cf-label">Fees &amp; Costs</div>
+        <div class="cf-formula" style="line-height:1.6;">
+          Servicing: Surviving Bal &times; 0.06%/mo<br>
+          Collection: Defaults &times; 10%<br>
+          Recovery: Recoveries &times; 15%
+        </div>
+        <span class="cf-source">&#8592; product parameters (editable per product)</span>
+      </div>
+
+    </div>
+
+    <!-- ── RIGHT: INFLOWS (Green) ────────────────────── -->
+    <div class="lane">
+
+      <div class="cf-card inflow">
+        <span class="cf-acronym">ADJ_EIP</span>
+        <div class="cf-label">Interest Income</div>
+        <div class="cf-formula">Surviving Balance &times; Monthly Interest Rate</div>
+        <span class="cf-source">&#8592; from loan APR (e.g. 12% &divide; 12 = 1%/mo)</span>
+      </div>
+
+      <div class="cf-card inflow">
+        <span class="cf-acronym">ESPP</span>
+        <div class="cf-label">Scheduled Principal</div>
+        <div class="cf-formula">Standard amortisation payment on surviving balance</div>
+        <span class="cf-source">&#8592; from loan term &amp; APR (level-pay amortisation)</span>
+      </div>
+
+      <div class="cf-card inflow">
+        <span class="cf-acronym">ER</span>
+        <div class="cf-label">Recoveries</div>
+        <div class="cf-formula">Defaults &times; Recovery Rate</div>
+        <span class="cf-source">&#8592; product parameter (PL: 20%, AL: 40%)</span>
+      </div>
+
+      <div class="cf-card inflow" style="border-left-color: #3b82f6; background: #0d1520; border-color: #1e3a5f;">
+        <span class="cf-acronym">EUPP</span>
+        <div class="cf-label" style="color: #93c5fd;">Prepayments (returned principal)</div>
+        <div class="cf-formula">Prepaid principal flows back but earns no future interest</div>
+        <span class="cf-source">&#8592; reduces balance, counted as cash returned</span>
+      </div>
+
+    </div>
+
+  </div><!-- /lanes -->
+
+  <!-- ── Surviving Balance Bridge ──────────────────────── -->
+  <div class="bridge-row">
+    <div class="bridge-box">
+      <div class="box-label">Surviving Balance = Opening &minus; Defaults &minus; Prepayments</div>
+      <div class="box-detail">The performing balance that continues to generate interest &amp; principal</div>
+    </div>
+  </div>
+
+  <div class="center-arrow">&#9660;</div>
+
+  <!-- ── Net Cashflow & Ending Balance ────────────────── -->
+  <div class="result-row">
+    <div class="result-card ncf">
+      <div class="box-label">Net Cashflow to Lender</div>
+      <div class="box-detail">
+        Interest + Principal + Prepayments + Recoveries<br>
+        &minus; Servicing Fees &minus; Collection Fees &minus; Recovery Fees
+      </div>
+      <div class="box-acronym">NCF &mdash; this is the cashflow used in the IRR calculation</div>
+    </div>
+
+    <div class="result-card ebb">
+      <div class="box-label">Closing Book Balance</div>
+      <div class="box-detail">
+        Surviving Balance &minus; Scheduled Principal<br>
+        This becomes next month's Opening Balance
+      </div>
+      <div class="box-acronym">EBB &mdash; Ending Book Balance</div>
+    </div>
+  </div>
+
+  <!-- ── Feed-next arrow ─────────────────────────────── -->
+  <div class="feed-arrow">
+    <span>&#8635; Closing Balance feeds into next month's Opening Balance</span>
+  </div>
+
+  <div class="repeat-indicator">
+    <span class="repeat-badge">Repeated for every month from origination to loan maturity (e.g. 72 months)</span>
+  </div>
+
+  <!-- ── Legend ────────────────────────────────────────── -->
+  <div class="legend">
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:#ef4444;"></span>
+      Outflows (losses, prepayments, fees)
+    </div>
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:#10b981;"></span>
+      Inflows (interest, principal, recoveries)
+    </div>
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:#d97706;"></span>
+      Net Cashflow (used for IRR)
+    </div>
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:#475569;"></span>
+      Balance (carried forward)
+    </div>
+  </div>
+
+  <!-- ── XIRR Outputs ─────────────────────────────────── -->
+  <div style="margin-top:28px; border-top: 1px solid #1e293b; padding-top: 20px;">
+    <div style="text-align:center; font-size:12px; color:#64748b; margin-bottom:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase;">
+      After all months are projected, the engine computes
+    </div>
+    <div class="xirr-row">
+      <div class="xirr-card">
+        <div class="box-label">Loan-Level IRR</div>
+        <div class="box-detail">Each loan's own rate of return based on its cashflow stream</div>
+      </div>
+      <div class="xirr-card">
+        <div class="box-label">Portfolio IRR</div>
+        <div class="box-detail">Aggregate return across all loans, weighted by size &amp; timing</div>
+      </div>
+      <div class="xirr-card">
+        <div class="box-label">Segment IRR</div>
+        <div class="box-detail">Breakdowns by FICO, vintage, channel, risk grade, etc.</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /waterfall-container -->
+
+</body>
+</html>

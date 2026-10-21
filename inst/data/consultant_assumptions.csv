@@ -1,0 +1,12 @@
+parameter,grade,value,description
+elasticity,High,3,Take-rate drop % per 100bps price increase
+elasticity,Med,5,Take-rate drop % per 100bps price increase
+elasticity,Low,8,Take-rate drop % per 100bps price increase
+adverse_selection,High,2,Bad-rate lift % per 100bps price increase
+adverse_selection,Med,5,Bad-rate lift % per 100bps price increase
+adverse_selection,Low,8,Bad-rate lift % per 100bps price increase
+anchor_fico_floor,ALL,760,FICO threshold above which segments are excluded from IRR recommendations
+donor_product,Top-Up,Personal Loan,Reference product for curve borrowing
+donor_product,Auto Secured,Personal Loan,Reference product for curve borrowing
+donor_stress,Top-Up,1.15,Auto-stress multiplier for cross-product donor curves
+donor_stress,Auto Secured,1.10,Auto-stress multiplier for cross-product donor curves
